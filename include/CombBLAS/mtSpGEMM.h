@@ -2,8 +2,13 @@
 #define _mtSpGEMM_h
 
 #include "CombBLAS.h"
-#include "main.h"
 #include <chrono>
+
+struct Timing_t {
+    double symb;
+    double mult;
+    double add; 
+}; 
 
 namespace combblas {
 /*
@@ -216,7 +221,7 @@ template <typename SR, typename NTO, typename IT, typename NT1, typename NT2>
 SpTuples<IT, NTO> * LocalHybridSpGEMM
 (const SpDCCols<IT, NT1> & A,
  const SpDCCols<IT, NT2> & B,
- bool clearA, bool clearB, IT * aux = nullptr, Timing_t timer)
+ bool clearA, bool clearB, IT * aux = nullptr, Timing_t* timer = nullptr)
 {
 
 
