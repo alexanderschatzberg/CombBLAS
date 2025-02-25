@@ -2,6 +2,8 @@
 #define _mtSpGEMM_h
 
 #include "CombBLAS.h"
+#include "main.h"
+#include <chrono>
 
 namespace combblas {
 /*
@@ -214,7 +216,7 @@ template <typename SR, typename NTO, typename IT, typename NT1, typename NT2>
 SpTuples<IT, NTO> * LocalHybridSpGEMM
 (const SpDCCols<IT, NT1> & A,
  const SpDCCols<IT, NT2> & B,
- bool clearA, bool clearB, IT * aux = nullptr)
+ bool clearA, bool clearB, IT * aux = nullptr, Timing_t timer)
 {
 
 
@@ -249,16 +251,19 @@ SpTuples<IT, NTO> * LocalHybridSpGEMM
 #endif
    
     // std::cout << "numThreads: " << numThreads << std::endl;
-
+    auto startSymb = std::chrono::high_resolution_clock::now();
     IT* flopC =  estimateFLOP(A, B, aux);
     //IT* flopptr = prefixsum<IT>(flopC, Bdcsc->nzc, numThreads);
     //IT flop = flopptr[Bdcsc->nzc];
     // std::cout << "FLOP of A * B is " << flop << std::endl;
 
-
     IT* colnnzC = estimateNNZ_Hash(A, B, flopC, aux);
     IT* flopptr = prefixsum<IT>(flopC, Bdcsc->nzc, numThreads);
     IT flop = flopptr[Bdcsc->nzc];
+
+    auto endSymb = std::chrono::high_resolution_clock::now();
+    timer->symb += (endSymb - startSymb).count();
+    
     IT* colptrC = prefixsum<IT>(colnnzC, Bdcsc->nzc, numThreads);
     delete [] colnnzC;
     delete [] flopC;
@@ -332,8 +337,13 @@ SpTuples<IT, NTO> * LocalHybridSpGEMM
             {
                 std::pop_heap(wset, wset + hsize);         // result is stored in wset[hsize-1]
                 IT locb = wset[hsize-1].runr;	// relative location of the nonzero in B's current column
-            
-                NTO mrhs = SR::multiply(wset[hsize-1].num, Bdcsc->numx[Bdcsc->cp[i]+locb]);
+
+                auto startMult1 = std::chrono::high_resolution_clock::now();
+                NTO mrhs = SR::multiply(wset[hsize - 1].num, Bdcsc->numx[Bdcsc->cp[i] + locb]);
+                auto endMult1 = std::chrono::high_resolution_clock::now();
+                timer->mult += (endMult1 - startMult1).count(); 
+
+                auto startAdd1 = std::chrono::high_resolution_clock::now();
                 if (!SR::returnedSAID())
                 {
                     if( (curptr > colptrC[i]) && std::get<0>(tuplesC[curptr-1]) == wset[hsize-1].key)
@@ -356,6 +366,8 @@ SpTuples<IT, NTO> * LocalHybridSpGEMM
                 {
                     --hsize;
                 }
+                auto endAdd1 = std::chrono::high_resolution_clock::now();
+                timer->add += (endAdd1 - startAdd1).count(); 
             }
         } // Finish Heap
         
@@ -398,7 +410,12 @@ SpTuples<IT, NTO> * LocalHybridSpGEMM
                 NT2 t_bval = Bdcsc->numx[Bdcsc->cp[i] + j];
                 for (IT k = colinds[j].first; k < colinds[j].second; ++k)
                 {
+                    auto startMult2 = std::chrono::high_resolution_clock::now();
                     NTO mrhs = SR::multiply(Adcsc->numx[k], t_bval);
+                    auto endMult2 = std::chrono::high_resolution_clock::now();
+                    timer->mult += (endMult2 - startMult2).count(); 
+
+                    auto startAdd2 = std::chrono::high_resolution_clock::now();
                     IT key = Adcsc->ir[k];
                     IT hash = (key*hashScale) & (ht_size-1);
                     while (1) //hash probing
@@ -419,8 +436,12 @@ SpTuples<IT, NTO> * LocalHybridSpGEMM
                             hash = (hash+1) & (ht_size-1);
                         }
                     }
+                    auto endAdd2 = std::chrono::high_resolution_clock::now();
+                    timer->add += (endAdd2 - startAdd2).count(); 
                 }
             }
+
+            auto startAdd3 = std::chrono::high_resolution_clock::now();
             // gather non-zero elements from hash table, and then sort them by row indices
             size_t index = 0;
             for (size_t j=0; j < ht_size; ++j)
@@ -431,12 +452,14 @@ SpTuples<IT, NTO> * LocalHybridSpGEMM
                 }
             }
             //std::sort(globalHashVec.begin(), globalHashVec.begin() + index, sort_less<IT, NTO>);
-	    std::sort(globalHashVecAll[myThread].begin(), globalHashVecAll[myThread].begin() + index, sort_less<IT, NTO>);
+	        std::sort(globalHashVecAll[myThread].begin(), globalHashVecAll[myThread].begin() + index, sort_less<IT, NTO>);
             IT curptr = colptrC[i];
             for (size_t j=0; j < index; ++j)
             {
                 tuplesC[curptr++]= std::make_tuple(globalHashVec[j].first, Bdcsc->jc[i], globalHashVec[j].second);
             }
+            auto endAdd3 = std::chrono::high_resolution_clock::now();
+            timer->add += (endAdd3 - startAdd3).count(); 
         }
     }
     
