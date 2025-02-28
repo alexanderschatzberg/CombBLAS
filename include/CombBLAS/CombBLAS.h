@@ -7,18 +7,19 @@
 /*
 
 Combinatorial BLAS, Copyright (c) 2018, The Regents of the University of California, through Lawrence Berkeley National Laboratory (subject to receipt of any required approvals from the U.S. Dept. of Energy) and University of California, Santa Barbara.  All rights reserved.
- 
-If you have questions about your rights to use or distribute this software, please contact Berkeley Lab's Innovation & Partnerships Office at  IPO@lbl.gov.
- 
 
-NOTICE.  This Software was developed under funding from the U.S. Department of Energy and the U.S. Government consequently retains certain rights. As such, the U.S. Government has been granted for itself and others acting on its behalf a paid-up, nonexclusive, irrevocable, worldwide license in the Software to reproduce, distribute copies to the public, prepare derivative works, and perform publicly and display publicly, and to permit other to do so. 
+If you have questions about your rights to use or distribute this software, please contact Berkeley Lab's Innovation & Partnerships Office at  IPO@lbl.gov.
+
+
+NOTICE.  This Software was developed under funding from the U.S. Department of Energy and the U.S. Government consequently retains certain rights. As such, the U.S. Government has been granted for itself and others acting on its behalf a paid-up, nonexclusive, irrevocable, worldwide license in the Software to reproduce, distribute copies to the public, prepare derivative works, and perform publicly and display publicly, and to permit other to do so.
  */
 
 
 #ifndef COMBBLAS_H
 #define COMBBLAS_H
 
-// These macros should be defined before stdint.h is included
+#define THREADED
+ // These macros should be defined before stdint.h is included
 #ifndef __STDC_CONSTANT_MACROS
 #define __STDC_CONSTANT_MACROS
 #endif
@@ -28,44 +29,44 @@ NOTICE.  This Software was developed under funding from the U.S. Department of E
 #include <stdint.h>
 
 #if defined(COMBBLAS_BOOST)
-	#ifdef CRAYCOMP
-		#include <boost/config/compiler/cray.hpp>
-	#endif
-	#include <boost/tr1/memory.hpp>
-	#include <boost/tr1/unordered_map.hpp>
-	#include <boost/tr1/tuple.hpp>
-	#define joker boost	// namespace
+#ifdef CRAYCOMP
+#include <boost/config/compiler/cray.hpp>
+#endif
+#include <boost/tr1/memory.hpp>
+#include <boost/tr1/unordered_map.hpp>
+#include <boost/tr1/tuple.hpp>
+#define joker boost	// namespace
 #elif defined(COMBBLAS_TR1)
-	#include <tr1/memory>
-	#include <tr1/unordered_map>
-	#include <tr1/tuple>
- 	#include <tr1/type_traits>
-	#define joker std::tr1
+#include <tr1/memory>
+#include <tr1/unordered_map>
+#include <tr1/tuple>
+#include <tr1/type_traits>
+#define joker std::tr1
 #elif defined(_MSC_VER) && (_MSC_VER < 1600)
-	#include <memory>
-	#include <unordered_map>
-	#include <tuple>
-	#include <type_traits>
-	#define joker std::tr1
+#include <memory>
+#include <unordered_map>
+#include <tuple>
+#include <type_traits>
+#define joker std::tr1
 #else // C++11
-	#include <memory>
-	#include <unordered_map>
-	#include <tuple>
-	#include <type_traits>
-	#define joker std
+#include <memory>
+#include <unordered_map>
+#include <tuple>
+#include <type_traits>
+#define joker std
 #endif
 // for VC2008
 
 
 // Just in case the -fopenmp didn't define _OPENMP by itself
 #ifdef THREADED
-	#ifndef _OPENMP
-	#define _OPENMP
-	#endif
+#ifndef _OPENMP
+#define _OPENMP
+#endif
 #endif
 
 #ifdef _OPENMP
-	#include <omp.h>
+#include <omp.h>
 #endif
 
 
@@ -105,13 +106,12 @@ extern double mcl3d_kselecttime;
 template <typename RETT, typename NU1, typename NU2, typename BINOP>
 class EWiseExtToPlainAdapter
 {
-	public:
+public:
 	BINOP plain_binary_op;
-	
-	EWiseExtToPlainAdapter(BINOP op): plain_binary_op(op) {}
-	
-	RETT operator()(const NU1& a, const NU2& b, bool aIsNull, bool bIsNull)
-	{
+
+	EWiseExtToPlainAdapter(BINOP op) : plain_binary_op(op) {}
+
+	RETT operator()(const NU1& a, const NU2& b, bool aIsNull, bool bIsNull) {
 		return plain_binary_op(a, b);
 	}
 };
